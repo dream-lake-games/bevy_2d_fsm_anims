@@ -1,0 +1,6 @@
+[package]
+name = "bevy_2d_fsm_anims"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
