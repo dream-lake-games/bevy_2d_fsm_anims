@@ -4,8 +4,9 @@ use bevy::utils::HashMap;
 use crate::body::AnimBodyDataBundle;
 use crate::man::AnimMan;
 use crate::mat::AnimMat;
+use crate::plugin::AnimDefaults;
 use crate::traits::{AnimBody, AnimStateMachine, ManageAnims};
-use crate::{AnimBodyProgress, AnimIndex, AnimNextState, AnimSet};
+use crate::{AnimIndex, AnimNextState, AnimSet};
 
 fn handle_manager_changes<StateMachine: AnimStateMachine>(
     mut commands: Commands,
@@ -17,6 +18,7 @@ fn handle_manager_changes<StateMachine: AnimStateMachine>(
     ass: Res<AssetServer>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut mats: ResMut<Assets<AnimMat>>,
+    anim_defaults: Res<AnimDefaults>,
 ) {
     for (eid, manager, ochildren) in &managers {
         if let Some(children) = ochildren {
@@ -27,50 +29,42 @@ fn handle_manager_changes<StateMachine: AnimStateMachine>(
             }
         }
         let mut new_progress_map = HashMap::new();
-        let state_data = manager.get_state().to_state_data();
+        let state_data = manager.get_state().next();
         for (ix, body) in StateMachine::BodyType::all_bodies().into_iter().enumerate() {
             new_progress_map.insert(body, 0);
             let data = body.to_body_data();
             let next = if ix == 0 {
                 state_data.clone()
             } else {
-                AnimNextState::None
+                AnimNextState::Stay
             };
             let body_bund = AnimBodyDataBundle::new(
                 body,
                 data,
                 next,
+                manager.flip_x,
+                manager.flip_y,
                 &ass,
                 &mut meshes,
                 &mut mats,
-                manager.flip_x,
-                manager.flip_y,
+                &anim_defaults,
             );
             commands.spawn(body_bund).set_parent(eid);
         }
-        commands
-            .entity(eid)
-            .insert(AnimBodyProgress::<StateMachine> {
-                ixes: new_progress_map,
-            });
     }
 }
 
 fn play_animations<StateMachine: AnimStateMachine>(
     mut commands: Commands,
-    mut managers: Query<(
-        Entity,
-        &mut AnimMan<StateMachine>,
-        &mut AnimBodyProgress<StateMachine>,
-        &mut Visibility,
-    )>,
+    mut managers: Query<(Entity, &mut AnimMan<StateMachine>, &mut Visibility)>,
     mut bodies: Query<(&mut AnimIndex<StateMachine>, &Handle<AnimMat>, &Parent)>,
     mut mats: ResMut<Assets<AnimMat>>,
     time: Res<Time>,
 ) {
     for (mut index, hand, parent) in &mut bodies {
-        let (manager_eid, mut manager, mut progress, mut visibility) =
-            managers.get_mut(parent.get()).unwrap();
+        let Ok((manager_eid, mut manager, mut visibility)) = managers.get_mut(parent.get()) else {
+            continue;
+        };
         if manager.hidden {
             continue;
         }
@@ -87,7 +81,7 @@ fn play_animations<StateMachine: AnimStateMachine>(
             mat.set_ix(index.ix);
         } else {
             match &index.next {
-                AnimNextState::None => {
+                AnimNextState::Stay => {
                     // Looping the animation
                     if index.length <= 1 {
                         // Degen animations don't need to do anything
@@ -109,8 +103,6 @@ fn play_animations<StateMachine: AnimStateMachine>(
                 }
             }
         }
-        // Update the ix in the manager so it can be read
-        progress.ixes.insert(index.body_type, index.ix);
     }
 }
 
@@ -128,7 +120,7 @@ fn populate_caches<StateMachine: AnimStateMachine>(
             }
             anim_man
                 .handle_cache
-                .insert(body, ass.load(body.to_body_data().path));
+                .insert(body, ass.load(body.to_body_data().get_path()));
         }
     }
 }

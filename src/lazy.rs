@@ -11,18 +11,18 @@ macro_rules! impl_get_copy {
 }
 pub(crate) use impl_get_copy;
 
-// /// Implements `get` for a field using reference
-// macro_rules! impl_get_ref {
-//     ($field:ident, $type:ty) => {
-//         paste::paste! {
-//             #[allow(unused)]
-//             pub fn [<get_ $field>](&self) -> &$type {
-//                 &self.$field
-//             }
-//         }
-//     };
-// }
-// pub(crate) use impl_get_ref;
+/// Implements `get` for a field using reference
+macro_rules! impl_get_ref {
+    ($field:ident, $type:ty) => {
+        paste::paste! {
+            #[allow(unused)]
+            pub fn [<get_ $field>](&self) -> &$type {
+                &self.$field
+            }
+        }
+    };
+}
+pub(crate) use impl_get_ref;
 
 // /// Implements `get` for a field using clone
 // macro_rules! impl_get_clone {
@@ -63,3 +63,17 @@ macro_rules! impl_with {
     };
 }
 pub(crate) use impl_with;
+
+/// Implements `with` for a field that is an option
+macro_rules! impl_with_option {
+    ($field:ident, $type:ty) => {
+        paste::paste! {
+            #[allow(unused)]
+            pub fn [<with_ $field>](mut self, val: $type) -> Self {
+                self.$field = Some(val);
+                self
+            }
+        }
+    };
+}
+pub(crate) use impl_with_option;

@@ -1,9 +1,21 @@
-use bevy::ecs::query::QueryFilter;
+use bevy::reflect::{FromReflect, GetTypeRegistration, Reflect, TypePath};
 
 use crate::{body::AnimBodyData, AnimNextState};
 
 pub trait AnimBody:
-    QueryFilter + Sized + Send + Sync + 'static + std::hash::Hash + PartialEq + Eq + Copy
+    Sized
+    + Send
+    + Sync
+    + 'static
+    + std::hash::Hash
+    + PartialEq
+    + Eq
+    + Copy
+    + Reflect
+    + FromReflect
+    + TypePath
+    + GetTypeRegistration
+    + std::fmt::Debug
 {
     fn all_bodies() -> Vec<Self>;
 
@@ -30,11 +42,24 @@ pub trait ManageAnims<StateMachine: AnimStateMachine> {
 }
 
 pub trait AnimStateMachine:
-    QueryFilter + Sized + Send + Sync + 'static + std::hash::Hash + PartialEq + Eq + Copy + Default
+    Sized
+    + Send
+    + Sync
+    + 'static
+    + std::hash::Hash
+    + PartialEq
+    + Eq
+    + Copy
+    + Default
+    + Reflect
+    + FromReflect
+    + TypePath
+    + GetTypeRegistration
+    + std::fmt::Debug
 {
     type BodyType: AnimBody;
 
     fn all_states() -> Vec<Self>;
 
-    fn to_state_data(&self) -> AnimNextState<Self>;
+    fn next(&self) -> AnimNextState<Self>;
 }

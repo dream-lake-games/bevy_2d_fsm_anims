@@ -1,12 +1,11 @@
 use bevy::prelude::*;
-use bevy::utils::HashMap;
 
 pub mod prelude {
     pub use crate::body::AnimBodyData;
     pub use crate::man::AnimMan;
     pub use crate::plugin::*;
     pub use crate::traits::*;
-    pub use crate::{AnimBodyProgress, AnimNextState, AnimSet};
+    pub use crate::{AnimNextState, AnimSet};
 }
 
 mod body;
@@ -24,19 +23,9 @@ pub struct AnimSet;
 
 #[derive(Debug, Clone, Reflect, PartialEq)]
 pub enum AnimNextState<NextType> {
-    None,
+    Stay,
     Some(NextType),
     Despawn,
-}
-
-#[derive(Debug, Clone, Component, Reflect)]
-pub struct AnimBodyProgress<StateMachine: AnimStateMachine> {
-    pub ixes: HashMap<StateMachine::BodyType, u32>,
-}
-impl<StateMachine: AnimStateMachine> AnimBodyProgress<StateMachine> {
-    pub fn get_body_ix(&self, body_type: StateMachine::BodyType) -> Option<u32> {
-        self.ixes.get(&body_type).map(|thing| *thing)
-    }
 }
 
 /// For tracking animations that play
