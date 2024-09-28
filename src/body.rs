@@ -1,13 +1,15 @@
+use bevy::ecs::world::DeferredWorld;
 use bevy::{prelude::*, render::view::RenderLayers, sprite::Mesh2dHandle};
 
 use crate::lazy::{impl_get_ref, impl_with, impl_with_option};
 use crate::mat::AnimMat;
 use crate::plugin::AnimDefaults;
 use crate::traits::AnimStateMachine;
-use crate::{AnimIndex, AnimNextState};
+use crate::AnimNextState;
 
+/// Core data defining a single animation
 #[derive(Debug, Clone, Reflect)]
-pub struct AnimBodyData {
+pub struct AnimBody {
     path: String,
     size: UVec2,
     length: u32,
@@ -16,7 +18,8 @@ pub struct AnimBodyData {
     zix: f32,
     render_layers: Option<RenderLayers>,
 }
-impl AnimBodyData {
+
+impl AnimBody {
     pub fn new(path: &str, width: u32, height: u32) -> Self {
         Self {
             path: path.into(),
@@ -42,51 +45,76 @@ impl AnimBodyData {
     impl_get_ref!(path, String);
 }
 
+/// Used internally for tracking animations that play
+#[derive(Component, Debug, Clone, Reflect)]
+pub(crate) struct BodyIndex<StateMachine: AnimStateMachine> {
+    pub(crate) last_ix: Option<u32>,
+    pub(crate) ix: u32,
+    pub(crate) length: u32,
+    pub(crate) time: f32,
+    /// Seconds per frame
+    pub(crate) spf: f32,
+    /// The state to transition to after this state. Note that this has a None variant inside it.
+    pub(crate) next: AnimNextState<StateMachine>,
+}
+
 #[derive(Bundle, Clone)]
-pub(crate) struct AnimBodyDataBundle<StateMachine: AnimStateMachine> {
+pub(crate) struct AnimBodyBundle<StateMachine: AnimStateMachine> {
     name: Name,
     mesh: Mesh2dHandle,
     material: Handle<AnimMat>,
     spatial: SpatialBundle,
     render_layers: RenderLayers,
-    index: AnimIndex<StateMachine>,
+    index: BodyIndex<StateMachine>,
 }
-impl<StateMachine: AnimStateMachine> AnimBodyDataBundle<StateMachine> {
+impl<StateMachine: AnimStateMachine> AnimBodyBundle<StateMachine> {
     pub(crate) fn new(
-        body_type: StateMachine::BodyType,
-        data: AnimBodyData,
-        next: AnimNextState<StateMachine>,
+        state: StateMachine,
         flip_x: bool,
         flip_y: bool,
-        ass: &Res<AssetServer>,
-        meshes: &mut ResMut<Assets<Mesh>>,
-        mats: &mut ResMut<Assets<AnimMat>>,
-        defaults: &Res<AnimDefaults>,
+        visible: bool,
+        world: &mut DeferredWorld,
     ) -> Self {
+        let data = state.get_data();
+        let next = state.get_next();
         let mesh = Mesh::from(Rectangle::new(data.size.x as f32, data.size.y as f32));
+        let texture = world.resource::<AssetServer>().load(data.path);
         Self {
-            name: Name::new(format!("AnimBodyDataBundle_{body_type:?}")),
-            mesh: meshes.add(mesh).into(),
-            material: mats.add(AnimMat::new(
-                // ass.load(data.path),
-                ass.load(data.path),
+            name: Name::new(format!("AnimBody_{state:?}")),
+            mesh: world.resource_mut::<Assets<Mesh>>().add(mesh).into(),
+            material: world.resource_mut::<Assets<AnimMat>>().add(AnimMat::new(
+                texture,
                 data.length,
                 flip_x,
                 flip_y,
             )),
-            spatial: SpatialBundle::from_transform(Transform {
-                translation: data.offset.extend(data.zix),
+            spatial: SpatialBundle {
+                transform: Transform {
+                    translation: data.offset.extend(data.zix),
+                    ..default()
+                },
+                visibility: if visible {
+                    Visibility::Inherited
+                } else {
+                    Visibility::Hidden
+                },
                 ..default()
-            }),
-            render_layers: data
-                .render_layers
-                .unwrap_or(defaults.default_render_layers.clone()),
-            index: AnimIndex {
-                body_type,
+            },
+            render_layers: data.render_layers.unwrap_or(
+                world
+                    .resource::<AnimDefaults>()
+                    .default_render_layers
+                    .clone(),
+            ),
+            index: BodyIndex {
+                last_ix: None,
                 ix: 0,
                 length: data.length,
                 time: 0.0,
-                spf: 1.0 / data.fps.unwrap_or(defaults.default_fps),
+                spf: 1.0
+                    / data
+                        .fps
+                        .unwrap_or(world.resource::<AnimDefaults>().default_fps),
                 next,
             },
         }

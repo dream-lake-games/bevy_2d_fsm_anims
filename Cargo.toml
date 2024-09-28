@@ -17,6 +17,7 @@ bevy = { version = "0.14", default-features = false, features = [
 ] }
 bevy_2d_fsm_anims_macros = { path = "macros" }
 paste = "1.0"
+strum = { version = "0.26", features = ["derive"] }
 
 [dev-dependencies]
 bevy = "0.14"

@@ -64,6 +64,20 @@ macro_rules! impl_with {
 }
 pub(crate) use impl_with;
 
+// /// Implements `with` for a bool field, where with indicates it should be on
+// macro_rules! impl_with_on {
+//     ($field:ident) => {
+//         paste::paste! {
+//             #[allow(unused)]
+//             pub fn [<with_ $field>](mut self) -> Self {
+//                 self.$field = true;
+//                 self
+//             }
+//         }
+//     };
+// }
+// pub(crate) use impl_with_on;
+
 /// Implements `with` for a field that is an option
 macro_rules! impl_with_option {
     ($field:ident, $type:ty) => {

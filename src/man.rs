@@ -1,42 +1,44 @@
-use bevy::prelude::*;
 use bevy::reflect::Reflect;
-use bevy::utils::HashMap;
+use bevy::{prelude::*, utils::HashMap};
 
-use crate::lazy::{impl_get_copy, impl_with};
+use crate::lazy::impl_get_copy;
 use crate::traits::{AnimStateMachine, ManageAnims};
 
+/// The main animation controller
 #[derive(Debug, Clone, Component, Reflect)]
 pub struct AnimMan<StateMachine: AnimStateMachine> {
-    pub state: StateMachine,
-    pub hidden: bool,
-    pub flip_x: bool,
-    pub flip_y: bool,
-    pub play_while_paused: bool,
-    // Need to keep handles to loaded assets around so switching doesn't blink
-    pub handle_cache: HashMap<StateMachine::BodyType, Handle<Image>>,
+    /// Current state of the animation
+    pub(crate) state: StateMachine,
+    /// Last state of the animation
+    pub(crate) last_state: Option<StateMachine>,
+    /// Flips x-axis of the animation
+    pub(crate) flip_x: bool,
+    /// Flips y-axis of the animation
+    pub(crate) flip_y: bool,
+    /// Should the `AnimStateChange` event be triggered?
+    pub(crate) observe_state_changes: bool,
+    /// Should the `AnimIxChange` event be triggered?
+    pub(crate) observe_ix_changes: bool,
+    /// INTERNAL: The entities of the spawned body children
+    pub(crate) tagged_children: HashMap<StateMachine, Entity>,
 }
 impl<StateMachine: AnimStateMachine> AnimMan<StateMachine> {
     pub fn new() -> Self {
         Self {
             state: default(),
-            hidden: false,
+            last_state: None,
             flip_x: false,
             flip_y: false,
-            play_while_paused: false,
-            handle_cache: default(),
+            observe_state_changes: false,
+            observe_ix_changes: false,
+            tagged_children: default(),
         }
     }
-
+}
+impl<StateMachine: AnimStateMachine> AnimMan<StateMachine> {
     impl_get_copy!(state, StateMachine);
-    impl_with!(state, StateMachine);
-    impl_get_copy!(hidden, bool);
-    impl_with!(hidden, bool);
     impl_get_copy!(flip_x, bool);
-    impl_with!(flip_x, bool);
     impl_get_copy!(flip_y, bool);
-    impl_with!(flip_y, bool);
-    impl_get_copy!(play_while_paused, bool);
-    impl_with!(play_while_paused, bool);
 }
 // This mutability hack exists so that `Changed` has good meaning.
 // In bevy, dereferencing a mutable pointer trigggers change. So we want to have a way to make
@@ -59,8 +61,17 @@ macro_rules! impl_mutable_animation_manager_field {
 impl<'w, StateMachine: AnimStateMachine> ManageAnims<StateMachine>
     for Mut<'w, AnimMan<StateMachine>>
 {
-    impl_mutable_animation_manager_field!(state, StateMachine);
-    impl_mutable_animation_manager_field!(hidden, bool);
+    fn set_state(&mut self, val: StateMachine) {
+        if val == self.state {
+            return;
+        }
+        self.last_state = Some(self.state);
+        self.state = val;
+    }
+    fn reset_state(&mut self, val: StateMachine) {
+        self.last_state = Some(self.state);
+        self.state = val;
+    }
     impl_mutable_animation_manager_field!(flip_x, bool);
     impl_mutable_animation_manager_field!(flip_y, bool);
 }

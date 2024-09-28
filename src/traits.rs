@@ -1,36 +1,13 @@
 use bevy::reflect::{FromReflect, GetTypeRegistration, Reflect, TypePath};
+use strum::IntoEnumIterator;
 
-use crate::{body::AnimBodyData, AnimNextState};
-
-pub trait AnimBody:
-    Sized
-    + Send
-    + Sync
-    + 'static
-    + std::hash::Hash
-    + PartialEq
-    + Eq
-    + Copy
-    + Reflect
-    + FromReflect
-    + TypePath
-    + GetTypeRegistration
-    + std::fmt::Debug
-{
-    fn all_bodies() -> Vec<Self>;
-
-    fn to_body_data(&self) -> AnimBodyData;
-}
+use crate::{AnimBody, AnimNextState};
 
 pub trait ManageAnims<StateMachine: AnimStateMachine> {
     /// Sets the currently value of the animation manager state, doing nothing if the value is the same
     fn set_state(&mut self, state: StateMachine);
     /// Resets the currently value of the animation manager state, triggering change even if the value is the same
     fn reset_state(&mut self, state: StateMachine);
-    /// Sets the currently value of the animation manager hidden, doing nothing if the value is the same
-    fn set_hidden(&mut self, hidden: bool);
-    /// Resets the currently value of the animation manager hidden, triggering change even if the value is the same
-    fn reset_hidden(&mut self, hidden: bool);
     /// Sets the currently value of the animation manager flip_x, doing nothing if the value is the same
     fn set_flip_x(&mut self, flip_x: bool);
     /// Resets the currently value of the animation manager flip_x, triggering change even if the value is the same
@@ -56,10 +33,9 @@ pub trait AnimStateMachine:
     + TypePath
     + GetTypeRegistration
     + std::fmt::Debug
+    + IntoEnumIterator
 {
-    type BodyType: AnimBody;
+    fn get_data(&self) -> AnimBody;
 
-    fn all_states() -> Vec<Self>;
-
-    fn next(&self) -> AnimNextState<Self>;
+    fn get_next(&self) -> AnimNextState<Self>;
 }

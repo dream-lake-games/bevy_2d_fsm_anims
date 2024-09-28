@@ -6,6 +6,7 @@ use bevy::sprite::Material2dPlugin;
 
 use crate::logic::register_logic;
 use crate::man::AnimMan;
+use crate::state::AnimState;
 use crate::traits::AnimStateMachine;
 use crate::AnimIndex;
 
@@ -17,6 +18,7 @@ impl<StateMachine: AnimStateMachine> Plugin for AnimDefnPlugin<StateMachine> {
     fn build(&self, app: &mut App) {
         register_logic::<StateMachine>(app);
         app.register_type::<AnimMan<StateMachine>>();
+        app.register_type::<AnimState<StateMachine>>();
         app.register_type::<AnimIndex<StateMachine>>();
     }
 }

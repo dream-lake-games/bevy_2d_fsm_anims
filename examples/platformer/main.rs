@@ -1,4 +1,4 @@
-use anims::{LennyAnim, SpaceShipAnimPlugin};
+use anims::{CircleAnim, CircleAnimPlugin, LennyAnim, LennyAnimPlugin};
 use bevy::{input::common_conditions::input_toggle_active, prelude::*, window::WindowResolution};
 use bevy_2d_fsm_anims::prelude::*;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
@@ -30,10 +30,15 @@ fn main() {
     .add_plugins(WorldInspectorPlugin::default().run_if(input_toggle_active(false, KeyCode::Tab)));
 
     // Anim plugins
-    app.add_plugins(AnimPlugin::default());
-    app.add_plugins(SpaceShipAnimPlugin::default());
+    app.add_plugins(AnimPlugin {
+        default_fps: 4.0,
+        ..default()
+    });
+    app.add_plugins(CircleAnimPlugin::default());
+    app.add_plugins(LennyAnimPlugin::default());
 
     app.add_systems(Startup, startup);
+    app.observe(lenny_anim_state_change);
 
     // Have fun!
     app.run();
@@ -44,7 +49,11 @@ fn startup(mut commands: Commands) {
     commands.spawn((Name::new("sanity_sprite"), SpriteBundle::default()));
     commands.spawn((
         Name::new("lenny"),
-        AnimMan::<LennyAnim>::new(),
+        AnimBundle::<LennyAnim>::default(),
         SpatialBundle::from_transform(Transform::from_scale(Vec3::ONE * 4.0)),
     ));
+}
+
+fn lenny_anim_state_change(trigger: Trigger<AnimStateChange<LennyAnim>>) {
+    println!("{:?}", trigger.event().state);
 }
