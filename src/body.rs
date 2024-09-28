@@ -47,8 +47,7 @@ impl AnimBody {
 
 /// Used internally for tracking animations that play
 #[derive(Component, Debug, Clone, Reflect)]
-pub(crate) struct BodyIndex<StateMachine: AnimStateMachine> {
-    pub(crate) last_ix: Option<u32>,
+pub(crate) struct BodyState<StateMachine: AnimStateMachine> {
     pub(crate) ix: u32,
     pub(crate) length: u32,
     pub(crate) time: f32,
@@ -65,7 +64,7 @@ pub(crate) struct AnimBodyBundle<StateMachine: AnimStateMachine> {
     material: Handle<AnimMat>,
     spatial: SpatialBundle,
     render_layers: RenderLayers,
-    index: BodyIndex<StateMachine>,
+    index: BodyState<StateMachine>,
 }
 impl<StateMachine: AnimStateMachine> AnimBodyBundle<StateMachine> {
     pub(crate) fn new(
@@ -106,8 +105,7 @@ impl<StateMachine: AnimStateMachine> AnimBodyBundle<StateMachine> {
                     .default_render_layers
                     .clone(),
             ),
-            index: BodyIndex {
-                last_ix: None,
+            index: BodyState {
                 ix: 0,
                 length: data.length,
                 time: 0.0,

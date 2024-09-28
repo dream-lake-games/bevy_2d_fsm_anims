@@ -38,6 +38,7 @@ fn main() {
     app.add_plugins(LennyAnimPlugin::default());
 
     app.add_systems(Startup, startup);
+    app.add_systems(Update, flips);
     app.observe(lenny_anim_state_change);
 
     // Have fun!
@@ -49,11 +50,26 @@ fn startup(mut commands: Commands) {
     commands.spawn((Name::new("sanity_sprite"), SpriteBundle::default()));
     commands.spawn((
         Name::new("lenny"),
-        AnimBundle::<LennyAnim>::default(),
+        AnimMan::<LennyAnim>::default(),
         SpatialBundle::from_transform(Transform::from_scale(Vec3::ONE * 4.0)),
     ));
 }
 
+fn flips(keyboard: Res<ButtonInput<KeyCode>>, mut anims: Query<&mut AnimMan<LennyAnim>>) {
+    if keyboard.just_pressed(KeyCode::KeyX) {
+        for mut anim in &mut anims {
+            let new_val = !anim.get_flip_x();
+            anim.set_flip_x(new_val);
+        }
+    }
+    if keyboard.just_pressed(KeyCode::KeyY) {
+        for mut anim in &mut anims {
+            let new_val = !anim.get_flip_y();
+            anim.set_flip_y(new_val);
+        }
+    }
+}
+
 fn lenny_anim_state_change(trigger: Trigger<AnimStateChange<LennyAnim>>) {
-    println!("{:?}", trigger.event().state);
+    println!("{:?}", trigger.event().next);
 }

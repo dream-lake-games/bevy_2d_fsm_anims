@@ -44,6 +44,14 @@ impl AnimMat {
     pub(crate) fn set_ix(&mut self, ix: u32) {
         self.ix_length_flipx_flipy[0] = ix as f32;
     }
+
+    pub(crate) fn set_flip_x(&mut self, flip_x: bool) {
+        self.ix_length_flipx_flipy[2] = Self::flip_to_mul(flip_x);
+    }
+
+    pub(crate) fn set_flip_y(&mut self, flip_y: bool) {
+        self.ix_length_flipx_flipy[3] = Self::flip_to_mul(flip_y);
+    }
 }
 
 impl Material2d for AnimMat {

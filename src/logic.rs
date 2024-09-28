@@ -1,256 +1,189 @@
 use bevy::prelude::*;
 
-use crate::body::BodyIndex;
-use crate::man::AnimMan;
-use crate::state::AnimState;
-use crate::traits::{AnimStateMachine, ManageAnims};
-use crate::AnimNextState;
+use crate::body::BodyState;
+use crate::man::{AnimMan, AnimResetStateInfo};
+use crate::mat::AnimMat;
+use crate::traits::AnimStateMachine;
+use crate::{AnimIxChange, AnimNextState, AnimSet, AnimStateChange};
 
-/// Marks an animation that would progress normally this frame (if uninterupted)
+/// Placed on components which need to mutably access some material of theirs this frame in response to state of ix changes.
 #[derive(Component)]
-struct ProgressUpdate<StateMachine: AnimStateMachine> {
-    state: StateMachine,
-    ix: u32,
-    time: f32,
-}
-/// Finds all animations that would have natural progressions this frame, and inserts progress updates
-fn create_progress_updates<StateMachine: AnimStateMachine>(
+struct NeedsMatStateUpdate;
+
+/// Placed on components which need to mutably access some material of theirs this frame in response to flip changes.
+#[derive(Component)]
+struct NeedsMatFlipUpdate;
+
+/// For animations which are not already marked as having a `reset_state` this frame,
+/// play them by incrementing time and (potentially) moving forward ixes and states.
+/// Regardless, after this frame, any animation which has a non-None `reset_state` will
+/// also have a `NeedsMatUpdate` component attached to it. This allows us to avoid
+/// traversing the list of all animation again.
+fn progress_animations<StateMachine: AnimStateMachine>(
     mut commands: Commands,
-    anims: Query<(Entity, &AnimState<StateMachine>)>,
-    bodies: Query<&BodyIndex<StateMachine>>,
+    mut anims: Query<(Entity, &mut AnimMan<StateMachine>)>,
+    mut bodies: Query<&mut BodyState<StateMachine>>,
     time: Res<Time>,
 ) {
-    for (anim_eid, anim_state) in &anims {
-        // Initialize
-        let mut despawned = false;
-        let initial_state = anim_state.state;
-        let mut current_state = initial_state;
-        let mut current_body = bodies
-            .get(anim_state.tagged_children[&current_state])
-            .expect("Anim missing body1");
-        let mut current_time = current_body.time;
-        let initial_ix = current_body.ix;
-        let mut current_ix = initial_ix;
-        // Transition through ixs and states
-        current_time += time.delta_seconds();
-        while current_time > current_body.spf {
-            current_ix += 1;
-            current_time -= current_body.spf;
-            if current_ix >= current_body.length {
-                match current_body.next {
-                    AnimNextState::Stay => {
-                        current_ix = 0;
-                    }
-                    AnimNextState::Some(next_state) => {
-                        current_state = next_state;
-                        current_ix = 0;
-                        current_body = bodies
-                            .get(anim_state.tagged_children[&current_state])
-                            .expect("Anim missing body2");
-                    }
-                    AnimNextState::Despawn => {
-                        commands.entity(anim_eid).despawn_recursive();
-                        despawned = true;
+    for (anim_eid, mut anim_man) in &mut anims {
+        // If the reset_state is not None, it means `.reset_state` has been called.
+        // This state should take precedence over any state/ix that would arise from
+        // just naturally playing animations
+        if anim_man.reset_state.is_none() {
+            // Initialize
+            let mut despawned = false;
+            let initial_state = anim_man.state;
+            let mut current_state = initial_state;
+            let mut current_body = bodies
+                .get(anim_man.tagged_children[&current_state])
+                .expect("Anim missing body1");
+            let mut current_time = current_body.time;
+            let initial_ix = current_body.ix;
+            let mut current_ix = initial_ix;
+            // Transition through ixs and states
+            current_time += time.delta_seconds();
+            while current_time > current_body.spf {
+                current_ix += 1;
+                current_time -= current_body.spf;
+                if current_ix >= current_body.length {
+                    match current_body.next {
+                        AnimNextState::Stay => {
+                            current_ix = 0;
+                        }
+                        AnimNextState::Some(next_state) => {
+                            current_state = next_state;
+                            current_ix = 0;
+                            current_body = bodies
+                                .get(anim_man.tagged_children[&current_state])
+                                .expect("Anim missing body2");
+                        }
+                        AnimNextState::Despawn => {
+                            commands.entity(anim_eid).despawn_recursive();
+                            despawned = true;
+                        }
                     }
                 }
             }
-        }
-        // If we haven't despawned and would change anims
-        if !despawned && (current_state != initial_state || current_ix != initial_ix) {
-            commands.entity(anim_eid).insert(ProgressUpdate {
-                state: current_state,
-                ix: current_ix,
-                time: current_time,
-            });
-        }
-    }
-}
-
-fn progress_mutate_anim_mans<StateMachine: AnimStateMachine>(
-    mut commands: Commands,
-    already_changed: Query<Entity, Changed<AnimMan<StateMachine>>>,
-    mut anim_q: Query<(
-        Entity,
-        &ProgressUpdate<StateMachine>,
-        &AnimState<StateMachine>,
-        &mut AnimMan<StateMachine>,
-    )>,
-    mut body_q: Query<&mut BodyIndex<StateMachine>>,
-) {
-    for (eid, update, anim_state, mut anim_man) in &mut anim_q {
-        if !already_changed.contains(eid) {
-            let is_state_change = update.state != anim_state.state;
-            if is_state_change {
-                anim_man.reset_state(update.state);
-            } else {
-                let body = body_q
-                    .get_mut(anim_state.tagged_children[&anim_state.state])
-                    .expect("mutate_anim_mans1");
+            // If we haven't despawned, do some updating
+            if !despawned {
+                if current_state != initial_state || current_ix != initial_ix {
+                    // A state transition is happening
+                    anim_man.reset_state = Some(AnimResetStateInfo {
+                        state: current_state,
+                        ix: current_ix,
+                        time: current_time,
+                    });
+                } else {
+                    // Otherwise, we need to increment the time of the current body
+                    let mut current_body = bodies
+                        .get_mut(anim_man.tagged_children[&current_state])
+                        .expect("ANim missing body3");
+                    current_body.time = current_time;
+                }
             }
         }
-        commands
-            .entity(eid)
-            .remove::<ProgressUpdate<StateMachine>>();
+        // Make sure it has `NeedsMatStateUpdate` if it has some reset_state
+        if anim_man.reset_state.is_some() {
+            commands.entity(anim_eid).insert(NeedsMatStateUpdate);
+        }
+        // Make sure it has `NeedsMatFlipUpdate` if it has reset_flip
+        if anim_man.reset_flip {
+            commands.entity(anim_eid).insert(NeedsMatFlipUpdate);
+        }
     }
 }
 
-// fn handle_manager_changes<StateMachine: AnimStateMachine>(
-//     mut commands: Commands,
-//     mans: Query<
-//         (Entity, &AnimMan<StateMachine>, Option<&Children>),
-//         Changed<AnimMan<StateMachine>>,
-//     >,
-//     relevant_children: Query<Entity, With<AnimIndex<StateMachine>>>,
-//     ass: Res<AssetServer>,
-//     mut meshes: ResMut<Assets<Mesh>>,
-//     mut mats: ResMut<Assets<AnimMat>>,
-//     anim_defaults: Res<AnimDefaults>,
-// ) {
-//     for (eid, man, ochildren) in &mans {
-//         if let Some(children) = ochildren {
-//             for child in children {
-//                 if relevant_children.contains(*child) {
-//                     commands.entity(*child).despawn_recursive();
-//                 }
-//             }
-//         }
-//         let state = man.get_state();
-//         let data = state.get_data();
-//         let next = state.get_next().clone();
-//         let body_bund = AnimBodyBundle::new(
-//             state,
-//             data,
-//             next,
-//             man.flip_x,
-//             man.flip_y,
-//             &ass,
-//             &mut meshes,
-//             &mut mats,
-//             &anim_defaults,
-//         );
-//         commands.spawn(body_bund).set_parent(eid);
-//         if man.observe_state_changes {
-//             commands.trigger_targets(
-//                 AnimStateChange {
-//                     prev: man.last_state,
-//                     state: man.state,
-//                 },
-//                 eid,
-//             );
-//         }
-//     }
-// }
+fn drive_animations<StateMachine: AnimStateMachine>(
+    mut commands: Commands,
+    mut anims: Query<(Entity, &mut AnimMan<StateMachine>), With<NeedsMatStateUpdate>>,
+    mut bodies: Query<(
+        &mut BodyState<StateMachine>,
+        &mut Visibility,
+        &Handle<AnimMat>,
+    )>,
+    mut mats: ResMut<Assets<AnimMat>>,
+) {
+    for (eid, mut anim_man) in &mut anims {
+        let reset = anim_man.reset_state.as_ref().expect(
+            "reset_state.is_some() should imply NeedsMatUpdate by time drive_animations runs",
+        );
+        if reset.state != anim_man.state {
+            // Hide and reset the last body when changing states
+            let (mut old_body, mut old_vis, old_hand) = bodies
+                .get_mut(anim_man.tagged_children[&anim_man.state])
+                .expect("tagged_children looks off in drive_animations1");
+            old_body.ix = 0;
+            *old_vis = Visibility::Hidden;
+            let old_mat = mats
+                .get_mut(old_hand.id())
+                .expect("drive_animations: bodies should have AnimMats1");
+            old_mat.set_ix(old_body.ix);
+            // Trigger a change if being observed
+            if anim_man.observe_state_changes {
+                commands.trigger(AnimStateChange {
+                    prev: Some(anim_man.state),
+                    next: reset.state,
+                });
+            }
+        }
+        // NEW BODY RHUMBA
+        let (mut new_body, mut new_vis, new_hand) = bodies
+            .get_mut(anim_man.tagged_children[&reset.state])
+            .expect("tagged_children looks off in drive_animations1");
+        new_body.ix = reset.ix;
+        new_body.time = reset.time;
+        *new_vis = Visibility::Inherited;
+        let new_mat = mats
+            .get_mut(new_hand.id())
+            .expect("drive_animations: bodies should have AnimMats1");
+        new_mat.set_ix(new_body.ix);
+        new_mat.set_flip_x(anim_man.flip_x);
+        new_mat.set_flip_y(anim_man.flip_y);
+        // TODO(maybe): If the game gets really laggy, it may progress more than one ix per frame
+        // Right now, this will only trigger once. It'd be better to trigger on every missed ix.
+        if anim_man.observe_ix_changes {
+            commands.trigger(AnimIxChange {
+                state: reset.state,
+                ix: reset.ix,
+            });
+        }
+        // Cleanup
+        anim_man.state = reset.state;
+        anim_man.reset_state = None;
+        commands.entity(eid).remove::<NeedsMatStateUpdate>();
+    }
+}
 
-// fn play_animations<StateMachine: AnimStateMachine>(
-//     mut commands: Commands,
-//     mut managers: Query<(Entity, &mut AnimMan<StateMachine>)>,
-//     mut bodies: Query<(&mut AnimIndex<StateMachine>, &Handle<AnimMat>, &Parent)>,
-//     mut mats: ResMut<Assets<AnimMat>>,
-//     time: Res<Time>,
-// ) {
-//     for (mut index, hand, parent) in &mut bodies {
-//         let Ok((manager_eid, mut manager)) = managers.get_mut(parent.get()) else {
-//             continue;
-//         };
-//         index.time += time.delta_seconds();
-//         let mut despawning = false;
-//         while index.spf < index.time && !despawning {
-//             index.ix += 1;
-//             index.time -= index.spf;
-//             if index.length <= index.ix {
-//                 // This specific animation variant has finished
-//                 match index.next {
-//                     AnimNextState::Stay => {}
-//                     AnimNextState::Some(next_state) => {}
-//                     AnimNextState::Despawn => {
-//                         commands.entity(manager_eid).despawn_recursive();
-//                         despawning = true;
-//                     }
-//                 }
-//             }
-//         }
-//         if index.length <= index.ix {
-//             // This specific animation variant has finished
-//             match index.next {
-//                 AnimNextState::Stay => {
-//                     index.ix = 0;
-//                 }
-//                 AnimNextState::Some(next_state) => {}
-//                 AnimNextState::Despawn => {
-//                     commands.entity(manager_eid).despawn_recursive();
-//                     despawning = true;
-//                 }
-//             }
-//         }
-//     }
+fn drive_flips<StateMachine: AnimStateMachine>(
+    mut commands: Commands,
+    mut anims: Query<(Entity, &mut AnimMan<StateMachine>), With<NeedsMatFlipUpdate>>,
+    bodies: Query<&Handle<AnimMat>, With<BodyState<StateMachine>>>,
+    mut mats: ResMut<Assets<AnimMat>>,
+) {
+    for (eid, mut anim_man) in &mut anims {
+        let hand = bodies
+            .get(anim_man.tagged_children[&anim_man.state])
+            .expect("");
+        let mat = mats
+            .get_mut(hand.id())
+            .expect("drive_animations: bodies should have AnimMats1");
+        mat.set_flip_x(anim_man.flip_x);
+        mat.set_flip_y(anim_man.flip_y);
+        // Cleanup
+        anim_man.reset_flip = false;
+        commands.entity(eid).remove::<NeedsMatFlipUpdate>();
+    }
+}
 
-//     // for (mut index, hand, parent) in &mut bodies {
-//     //     let Ok((manager_eid, mut manager, mut visibility)) = managers.get_mut(parent.get()) else {
-//     //         continue;
-//     //     };
-//     //     index.time += time.delta_seconds();
-//     //     if index.time < index.spf {
-//     //         // No update is happening to this body, can just continue
-//     //         continue;
-//     //     }
-//     //     index.time = 0.0;
-//     //     if index.ix + 1 < index.length {
-//     //         // Progressing to the next frame of the animation
-//     //         index.ix += 1;
-//     //         let mat = mats.get_mut(hand.id()).unwrap();
-//     //         mat.set_ix(index.ix);
-//     //     } else {
-//     //         match &index.next {
-//     //             AnimNextState::Stay => {
-//     //                 // Looping the animation
-//     //                 if index.length <= 1 {
-//     //                     // Degen animations don't need to do anything
-//     //                     continue;
-//     //                 }
-//     //                 index.ix = 0;
-//     //                 let mat = mats.get_mut(hand.id()).unwrap();
-//     //                 mat.set_ix(index.ix);
-//     //             }
-//     //             AnimNextState::Some(variant) => {
-//     //                 // Transitioning to a new state
-//     //                 manager.reset_state(variant.clone());
-//     //             }
-//     //             AnimNextState::Despawn => {
-//     //                 // Triggering the death process for this entity
-//     //                 *visibility = Visibility::Hidden;
-//     //                 commands.entity(manager_eid).despawn_recursive();
-//     //             }
-//     //         }
-//     //     }
-//     // }
-// }
-
-// #[derive(Component)]
-// struct AnimPopulatedCache;
-// fn populate_caches<StateMachine: AnimStateMachine>(
-//     ass: Res<AssetServer>,
-//     mut anim_man_q: Query<(Entity, &mut AnimMan<StateMachine>), Without<AnimPopulatedCache>>,
-//     mut commands: Commands,
-// ) {
-//     for (eid, mut anim_man) in &mut anim_man_q {
-//         for state in StateMachine::iter() {
-//             anim_man
-//                 .handle_cache
-//                 .insert(state, ass.load(state.get_data().get_path()));
-//             commands.entity(eid).insert(AnimPopulatedCache);
-//         }
-//     }
-// }
-
-pub(crate) fn register_logic<StateMachine: AnimStateMachine>(_app: &mut App) {
-    // app.add_systems(
-    //     PostUpdate,
-    //     (
-    //         handle_manager_changes::<StateMachine>,
-    //         play_animations::<StateMachine>,
-    //         populate_caches::<StateMachine>,
-    //     )
-    //         .chain()
-    //         .in_set(AnimSet),
-    // );
+pub(crate) fn register_logic<StateMachine: AnimStateMachine>(app: &mut App) {
+    app.add_systems(
+        PostUpdate,
+        (
+            progress_animations::<StateMachine>,
+            drive_animations::<StateMachine>,
+            drive_flips::<StateMachine>,
+        )
+            .chain()
+            .in_set(AnimSet),
+    );
 }
