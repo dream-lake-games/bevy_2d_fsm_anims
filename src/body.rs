@@ -1,7 +1,7 @@
 use bevy::ecs::world::DeferredWorld;
 use bevy::{prelude::*, render::view::RenderLayers, sprite::Mesh2dHandle};
 
-use crate::lazy::{impl_get_ref, impl_with, impl_with_option};
+use crate::lazy::{impl_get_ref, impl_with};
 use crate::mat::AnimMat;
 use crate::plugin::AnimDefaults;
 use crate::traits::AnimStateMachine;
@@ -10,7 +10,7 @@ use crate::AnimNextState;
 /// Core data defining a single animation
 #[derive(Debug, Clone, Reflect)]
 pub struct AnimBody {
-    path: String,
+    file: String,
     size: UVec2,
     length: u32,
     fps: Option<f32>,
@@ -22,7 +22,7 @@ pub struct AnimBody {
 impl AnimBody {
     pub fn new(path: &str, width: u32, height: u32) -> Self {
         Self {
-            path: path.into(),
+            file: path.into(),
             size: UVec2::new(width, height),
             length: 1,
             fps: None,
@@ -38,11 +38,17 @@ impl AnimBody {
     }
 
     impl_with!(length, u32);
-    impl_with_option!(fps, f32);
+    impl_with!(fps, Option<f32>);
     impl_with!(zix, f32);
-    impl_with_option!(render_layers, RenderLayers);
+    impl_with!(render_layers, Option<RenderLayers>);
 
-    impl_get_ref!(path, String);
+    pub fn add_render_layers(mut self, val: RenderLayers) -> Self {
+        let acc = self.render_layers.unwrap_or(RenderLayers::from_layers(&[]));
+        self.render_layers = Some(acc.union(&val));
+        self
+    }
+
+    impl_get_ref!(file, String);
 }
 
 /// Used internally for tracking animations that play
@@ -74,10 +80,10 @@ impl<StateMachine: AnimStateMachine> AnimBodyBundle<StateMachine> {
         visible: bool,
         world: &mut DeferredWorld,
     ) -> Self {
-        let data = state.get_data();
+        let data = state.get_body();
         let next = state.get_next();
         let mesh = Mesh::from(Rectangle::new(data.size.x as f32, data.size.y as f32));
-        let texture = world.resource::<AssetServer>().load(data.path);
+        let texture = world.resource::<AssetServer>().load(data.file);
         Self {
             name: Name::new(format!("AnimBody_{state:?}")),
             mesh: world.resource_mut::<Assets<Mesh>>().add(mesh).into(),

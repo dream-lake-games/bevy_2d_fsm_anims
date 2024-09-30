@@ -77,17 +77,3 @@ macro_rules! impl_with_on {
     };
 }
 pub(crate) use impl_with_on;
-
-/// Implements `with` for a field that is an option
-macro_rules! impl_with_option {
-    ($field:ident, $type:ty) => {
-        paste::paste! {
-            #[allow(unused)]
-            pub fn [<with_ $field>](mut self, val: $type) -> Self {
-                self.$field = Some(val);
-                self
-            }
-        }
-    };
-}
-pub(crate) use impl_with_option;

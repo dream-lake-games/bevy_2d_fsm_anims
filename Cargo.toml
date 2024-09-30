@@ -1,6 +1,6 @@
 [package]
-name = "bevy_2d_fsm_anims"
-description = "An fsm-driven 2d animation system"
+name = "bevy_2delight_anims"
+description = "An fsm-driven 2d animation system that's _delight_ful to use"
 version = "0.1.0"
 edition = "2021"
 authors = ["Mark Pekala <mfpekala@gmail.com>"]
@@ -15,9 +15,8 @@ bevy = { version = "0.14", default-features = false, features = [
     "bevy_render",
     "bevy_sprite",
 ] }
-bevy_2d_fsm_anims_macros = { path = "macros" }
+bevy_2delight_anims_macros = { path = "macros" }
 paste = "1.0"
-strum = { version = "0.26", features = ["derive"] }
 
 [dev-dependencies]
 bevy = "0.14"

@@ -1,5 +1,4 @@
 use bevy::reflect::{FromReflect, GetTypeRegistration, Reflect, TypePath};
-use strum::IntoEnumIterator;
 
 use crate::{body::AnimBody, AnimNextState};
 
@@ -18,9 +17,10 @@ pub trait AnimStateMachine:
     + TypePath
     + GetTypeRegistration
     + std::fmt::Debug
-    + IntoEnumIterator
 {
-    fn get_data(&self) -> AnimBody;
+    fn all() -> Vec<Self>;
+
+    fn get_body(&self) -> AnimBody;
 
     fn get_next(&self) -> AnimNextState<Self>;
 }

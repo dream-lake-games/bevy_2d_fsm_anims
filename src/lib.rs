@@ -27,6 +27,7 @@ pub enum AnimNextState<NextType> {
     Stay,
     Some(NextType),
     Despawn,
+    Remove,
 }
 
 /// An event that is triggered when the given state changes. Must be observed.
@@ -41,4 +42,12 @@ pub struct AnimStateChange<StateMachine: AnimStateMachine> {
 pub struct AnimIxChange<StateMachine: AnimStateMachine> {
     pub state: StateMachine,
     pub ix: u32,
+}
+
+#[macro_export]
+macro_rules! derive_anim {
+    ($i:item) => {
+        #[derive(Debug, Copy, Clone, Default, Reflect, PartialEq, Eq, Hash, AnimStateMachine)]
+        $i
+    };
 }

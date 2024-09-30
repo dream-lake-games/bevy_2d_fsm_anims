@@ -1,6 +1,6 @@
 [package]
-name = "bevy_2d_fsm_anims_macros"
-description = "Derive macros for bevy_2d_fsm_anims"
+name = "bevy_2delight_anims_macros"
+description = "Derive macros for bevy_2delight_anims"
 version = "0.10.0"
 edition = "2021"
 authors = ["Mark Pekala <mfpekala@gmail.com>"]
@@ -9,6 +9,11 @@ authors = ["Mark Pekala <mfpekala@gmail.com>"]
 syn = "1.0"
 quote = "1.0"
 proc-macro2 = "1.0"
+bevy = { version = "0.14", default-features = false, features = [
+    "bevy_asset",
+    "bevy_render",
+    "bevy_sprite",
+] }
 
 [lib]
 proc-macro = true

@@ -133,7 +133,7 @@ impl<StateMachine: AnimStateMachine> Component for AnimMan<StateMachine> {
             let flip_y = myself.flip_y;
             let my_state = myself.state;
             let mut tagged_children = HashMap::default();
-            for state in StateMachine::iter() {
+            for state in StateMachine::all().into_iter() {
                 let bund =
                     AnimBodyBundle::new(state, flip_x, flip_y, state == my_state, &mut world);
                 let mut commands = world.commands();
