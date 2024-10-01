@@ -56,6 +56,6 @@ impl AnimMat {
 
 impl Material2d for AnimMat {
     fn fragment_shader() -> ShaderRef {
-        "shaders/anim_mat.wgsl".into()
+        "embedded://bevy_2delight_anims/anim_mat.wgsl".into()
     }
 }

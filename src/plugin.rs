@@ -1,5 +1,6 @@
 use std::marker::PhantomData;
 
+use bevy::asset::embedded_asset;
 use bevy::prelude::*;
 use bevy::render::view::RenderLayers;
 use bevy::sprite::Material2dPlugin;
@@ -39,6 +40,7 @@ impl Default for AnimPlugin {
 }
 impl Plugin for AnimPlugin {
     fn build(&self, app: &mut App) {
+        embedded_asset!(app, "anim_mat.wgsl");
         app.insert_resource(AnimDefaults {
             default_fps: self.default_fps,
             default_render_layers: self.default_render_layers.clone(),
