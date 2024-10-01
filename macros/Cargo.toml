@@ -4,6 +4,10 @@ description = "Derive macros for bevy_2delight_anims"
 version = "0.1.0"
 edition = "2021"
 authors = ["Mark Pekala <mfpekala@gmail.com>"]
+license = "MIT"
+homepage = "https://github.com/dream-lake-games/bevy_2delight_anims"
+repository = "https://github.com/dream-lake-games/bevy_2delight_anims"
+readme = "README.md"
 
 [dependencies]
 syn = "1.0"
