@@ -385,7 +385,7 @@ dependencies = [
 
 [[package]]
 name = "bevy_2delight_anims_macros"
-version = "0.10.0"
+version = "0.1.0"
 dependencies = [
  "bevy",
  "proc-macro2",
