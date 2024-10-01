@@ -20,19 +20,7 @@ macro_rules! find_optional_attr {
 
 #[proc_macro_derive(
     AnimStateMachine,
-    attributes(
-        file,
-        size,
-        length,
-        fps,
-        offset_x_negative,
-        offset_y_negative,
-        offset,
-        zix,
-        render_layers,
-        next,
-        next_despawn,
-    )
+    attributes(file, size, length, fps, offset, zix, render_layers, next,)
 )]
 pub fn anim_state_machine_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let ast: syn::DeriveInput = syn::parse(input).unwrap();
@@ -81,8 +69,6 @@ fn make_data_match(variant: &syn::Variant) -> proc_macro2::TokenStream {
     let size = find_required_attr!(variant, "size", "size is required");
     let length = find_optional_attr!(variant, "length");
     let fps = find_optional_attr!(variant, "fps");
-    let offset_x_negative = find_optional_attr!(variant, "offset_x_negative");
-    let offset_y_negative = find_optional_attr!(variant, "offset_y_negative");
     let offset = find_optional_attr!(variant, "offset");
     let zix = find_optional_attr!(variant, "zix");
     let render_layers = find_optional_attr!(variant, "render_layers");
@@ -175,18 +161,8 @@ fn make_data_match(variant: &syn::Variant) -> proc_macro2::TokenStream {
                             syn::NestedMeta::Lit(syn::Lit::Float(x)),
                             syn::NestedMeta::Lit(syn::Lit::Float(y)),
                         ) => (
-                            x.base10_parse::<f32>().expect("can't parse f32")
-                                * if offset_x_negative.is_some() {
-                                    -1.0
-                                } else {
-                                    1.0
-                                },
-                            y.base10_parse::<f32>().expect("can't parse f32")
-                                * if offset_y_negative.is_some() {
-                                    -1.0
-                                } else {
-                                    1.0
-                                },
+                            x.base10_parse::<f32>().expect("can't parse f32"),
+                            y.base10_parse::<f32>().expect("can't parse f32"),
                         ),
                         _ => panic!("Expected #[offset(x, y)] as f32s or ints"),
                     }
@@ -234,7 +210,7 @@ fn make_data_match(variant: &syn::Variant) -> proc_macro2::TokenStream {
         Self::#variant_ident => bevy_2delight_anims::prelude::AnimBody::new(#file, #size_x, #size_y)
             .with_length(#length)
             .with_fps(#fps_token)
-            .with_offset(#offset_x, #offset_y)
+            .with_offset((#offset_x), (#offset_y))
             .with_zix(#zix)
             #(#add_render_layers)*,
     }

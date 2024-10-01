@@ -5,7 +5,8 @@ pub mod prelude {
     pub use crate::man::AnimMan;
     pub use crate::plugin::*;
     pub use crate::traits::*;
-    pub use crate::{AnimIxChange, AnimNextState, AnimSet, AnimStateChange};
+    pub use crate::{derive_anim, AnimIxChange, AnimNextState, AnimSet, AnimStateChange};
+    pub use bevy_2delight_anims_macros::AnimStateMachine;
 }
 
 mod body;
