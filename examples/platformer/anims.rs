@@ -5,28 +5,22 @@ use bevy_2delight_anims_macros::AnimStateMachine;
 struct MainLayer;
 impl Into<RenderLayers> for MainLayer {
     fn into(self) -> RenderLayers {
-        RenderLayers::from_layers(&[1])
+        RenderLayers::from_layers(&[0])
     }
 }
 
-struct OtherLayer;
-impl Into<RenderLayers> for OtherLayer {
-    fn into(self) -> RenderLayers {
-        RenderLayers::from_layers(&[2])
+derive_anim!(
+    pub enum CircleAnim {
+        #[default]
+        #[file("platformer/circle.png")]
+        #[size(24, 24)]
+        #[length(8)]
+        #[fps(3.0)]
+        #[zix(10.0)]
+        #[render_layers(MainLayer)]
+        Spin,
     }
-}
-
-#[derive(Debug, Copy, Clone, Default, Reflect, PartialEq, Eq, Hash, AnimStateMachine)]
-pub enum CircleAnim {
-    #[default]
-    #[file("platformer/circle.png")]
-    #[size(24, 24)]
-    #[length(8)]
-    #[fps(1.0)]
-    #[zix(10.0)]
-    #[next(Remove)]
-    Spin,
-}
+);
 
 derive_anim!(
     pub enum LennyAnim {
