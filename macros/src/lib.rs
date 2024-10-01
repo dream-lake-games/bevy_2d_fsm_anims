@@ -25,6 +25,8 @@ macro_rules! find_optional_attr {
         size,
         length,
         fps,
+        offset_x_negative,
+        offset_y_negative,
         offset,
         zix,
         render_layers,
@@ -79,6 +81,8 @@ fn make_data_match(variant: &syn::Variant) -> proc_macro2::TokenStream {
     let size = find_required_attr!(variant, "size", "size is required");
     let length = find_optional_attr!(variant, "length");
     let fps = find_optional_attr!(variant, "fps");
+    let offset_x_negative = find_optional_attr!(variant, "offset_x_negative");
+    let offset_y_negative = find_optional_attr!(variant, "offset_y_negative");
     let offset = find_optional_attr!(variant, "offset");
     let zix = find_optional_attr!(variant, "zix");
     let render_layers = find_optional_attr!(variant, "render_layers");
@@ -171,8 +175,18 @@ fn make_data_match(variant: &syn::Variant) -> proc_macro2::TokenStream {
                             syn::NestedMeta::Lit(syn::Lit::Float(x)),
                             syn::NestedMeta::Lit(syn::Lit::Float(y)),
                         ) => (
-                            x.base10_parse::<f32>().expect("can't parse f32"),
-                            y.base10_parse::<f32>().expect("can't parse f32"),
+                            x.base10_parse::<f32>().expect("can't parse f32")
+                                * if offset_x_negative.is_some() {
+                                    -1.0
+                                } else {
+                                    1.0
+                                },
+                            y.base10_parse::<f32>().expect("can't parse f32")
+                                * if offset_y_negative.is_some() {
+                                    -1.0
+                                } else {
+                                    1.0
+                                },
                         ),
                         _ => panic!("Expected #[offset(x, y)] as f32s or ints"),
                     }

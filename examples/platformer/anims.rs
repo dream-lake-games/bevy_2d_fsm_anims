@@ -22,8 +22,9 @@ pub enum CircleAnim {
     #[file("platformer/circle.png")]
     #[size(24, 24)]
     #[length(8)]
-    #[fps(20.0)]
+    #[fps(1.0)]
     #[zix(10.0)]
+    #[next(Remove)]
     Spin,
 }
 
@@ -31,21 +32,25 @@ derive_anim!(
     pub enum LennyAnim {
         #[file("platformer/lenny_idle.png")]
         #[size(17, 17)]
-        #[offset(-0.5, -0.5)]
+        #[offset_x_negative]
+        #[offset_y_negative]
+        #[offset(0.5, 0.5)]
         Idle,
 
         #[default]
         #[file("platformer/lenny_run.png")]
         #[size(17, 17)]
         #[length(5)]
-        #[offset(-10.5, -0.5)]
+        #[offset_x_negative]
+        #[offset_y_negative]
+        #[offset(10.5, 10.5)]
         #[next(RunOffset)]
         Run,
 
         #[file("platformer/lenny_run.png")]
         #[size(17, 17)]
         #[length(5)]
-        #[offset(10.5, -0.5)]
+        #[offset(10.5, 10.5)]
         #[next(Run)]
         RunOffset,
     }
