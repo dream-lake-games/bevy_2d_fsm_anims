@@ -15,6 +15,7 @@ mod logic;
 mod man;
 mod mat;
 mod plugin;
+pub mod time;
 mod traits;
 
 use crate::traits::AnimStateMachine;

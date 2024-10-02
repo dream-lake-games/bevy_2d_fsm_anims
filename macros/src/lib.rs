@@ -20,10 +20,15 @@ macro_rules! find_optional_attr {
 
 #[proc_macro_derive(
     AnimStateMachine,
-    attributes(file, size, length, fps, offset, zix, render_layers, next,)
+    attributes(time_class, file, size, length, fps, offset, zix, render_layers, next)
 )]
 pub fn anim_state_machine_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let ast: syn::DeriveInput = syn::parse(input).unwrap();
+    let time_class_attr = ast
+        .attrs
+        .iter()
+        .find(|attr| attr.path.is_ident("time_class"));
+    let time_class = make_time_class(time_class_attr);
     let enum_ident = &ast.ident;
     let variants = match &ast.data {
         syn::Data::Enum(syn::DataEnum { variants, .. }) => variants,
@@ -46,6 +51,10 @@ pub fn anim_state_machine_derive(input: proc_macro::TokenStream) -> proc_macro::
                 vec![#(#variant_idents)*]
             }
 
+            fn get_time_class() -> Option<i32> {
+                #time_class
+            }
+
             fn get_body(&self) -> AnimBody {
                 match self {
                     #(#data_matches)*
@@ -60,6 +69,33 @@ pub fn anim_state_machine_derive(input: proc_macro::TokenStream) -> proc_macro::
         }
     };
     gen.into()
+}
+
+fn make_time_class(time_class: Option<&syn::Attribute>) -> proc_macro2::TokenStream {
+    let path = time_class.map(|time_class| {
+        match time_class
+            .parse_meta()
+            .expect("Cannot parse #[time_class...] attribute")
+        {
+            syn::Meta::List(syn::MetaList { nested, .. }) if nested.len() == 1 => {
+                match nested.first().unwrap() {
+                    syn::NestedMeta::Meta(syn::Meta::Path(p)) => {
+                        quote! { #p }
+                    }
+                    _ => panic!("#[time_class(TimeClass::Variant)] is expected"),
+                }
+            }
+            _ => panic!("#[time_class...] attribute should take the form #[time_class(ident)]"),
+        }
+    });
+    match path {
+        Some(token_stream) => quote! {
+            Some(#token_stream as i32)
+        },
+        None => quote! {
+            None
+        },
+    }
 }
 
 fn make_data_match(variant: &syn::Variant) -> proc_macro2::TokenStream {
@@ -202,7 +238,7 @@ fn make_data_match(variant: &syn::Variant) -> proc_macro2::TokenStream {
                     }
                 }
             }
-            _ => panic!("#[render_layers...] attribute should take the form #[render_layers(ident, ident...)"),
+            _ => panic!("#[render_layers...] attribute should take the form #[render_layers(ident, ident...)]"),
         }
     }
 
@@ -249,4 +285,14 @@ fn make_next_match(variant: &syn::Variant) -> proc_macro2::TokenStream {
             Self::#variant_ident => bevy_2delight_anims::prelude::AnimNextState::Some(Self::#ident),
         }
     }
+}
+
+#[proc_macro_derive(AnimTimeClass)]
+pub fn anim_time_class_derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let ast: syn::DeriveInput = syn::parse(input).unwrap();
+    let enum_ident = &ast.ident;
+    let gen = quote! {
+        impl bevy_2delight_anims::AnimTimeClass for #enum_ident {}
+    };
+    gen.into()
 }

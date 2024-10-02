@@ -1,8 +1,5 @@
 use anims::{CircleAnim, LennyAnim};
-use bevy::{
-    input::common_conditions::input_toggle_active, prelude::*, render::view::RenderLayers,
-    window::WindowResolution,
-};
+use bevy::{input::common_conditions::input_toggle_active, prelude::*, window::WindowResolution};
 use bevy_2delight_anims::prelude::*;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 
@@ -33,10 +30,7 @@ fn main() {
     .add_plugins(WorldInspectorPlugin::default().run_if(input_toggle_active(false, KeyCode::Tab)));
 
     // Anim plugins
-    app.add_plugins(AnimPlugin {
-        default_fps: 16.0,
-        default_render_layers: RenderLayers::default(),
-    });
+    app.add_plugins(AnimPlugin::new().with_default_fps(16.0));
     app.add_plugins(AnimDefnPlugin::<CircleAnim>::default());
     app.add_plugins(AnimDefnPlugin::<LennyAnim>::default());
 

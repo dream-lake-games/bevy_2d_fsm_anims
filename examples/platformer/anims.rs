@@ -1,5 +1,6 @@
 use bevy::{reflect::Reflect, render::view::RenderLayers};
 use bevy_2delight_anims::prelude::*;
+use bevy_2delight_anims::time::AnimPlaceholderTimeClass;
 
 struct MainLayer;
 impl Into<RenderLayers> for MainLayer {
@@ -9,6 +10,7 @@ impl Into<RenderLayers> for MainLayer {
 }
 
 derive_anim!(
+    #[time_class(AnimPlaceholderTimeClass::Realtime)]
     pub enum CircleAnim {
         #[default]
         #[file("platformer/circle.png")]

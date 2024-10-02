@@ -48,10 +48,7 @@ fn main() {
     let mut app = App::new();
 
     app.add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()));
-    app.add_plugins(AnimPlugin {
-        default_fps: 16.0,
-        default_render_layers: RenderLayers::default(),
-    });
+    app.add_plugins(AnimPlugin::new().with_default_fps(16.0));
     app.add_plugins(AnimDefnPlugin::<CircleAnim>::default());
 
     app.add_systems(Startup, startup);

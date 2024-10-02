@@ -5,7 +5,8 @@ use bevy::prelude::*;
 use crate::body::BodyState;
 use crate::man::{AnimMan, AnimResetStateInfo};
 use crate::mat::AnimMat;
-use crate::traits::AnimStateMachine;
+use crate::plugin::AnimDefaults;
+use crate::traits::{AnimStateMachine, AnimTimeClassTrait, AnimTimeResTrait};
 use crate::{AnimIxChange, AnimNextState, AnimSet, AnimStateChange};
 
 /// Placed on components which need to mutably access some material of theirs this frame in response to state of ix changes.
@@ -25,12 +26,21 @@ struct NeedsMatFlipUpdate<StateMachine: AnimStateMachine> {
 /// Regardless, after this frame, any animation which has a non-None `reset_state` will
 /// also have a `NeedsMatStateUpdate` component attached to it. This allows us to avoid
 /// traversing the list of all animation again.
-fn progress_animations<StateMachine: AnimStateMachine>(
+fn progress_animations<
+    StateMachine: AnimStateMachine,
+    AnimTimeClass: AnimTimeClassTrait,
+    AnimTimeRes: AnimTimeResTrait<AnimTimeClass>,
+>(
     mut commands: Commands,
     mut anims: Query<(Entity, &mut AnimMan<StateMachine>)>,
     mut bodies: Query<&mut BodyState<StateMachine>>,
-    time: Res<Time>,
+    defaults: Res<AnimDefaults>,
+    anim_time: Res<AnimTimeRes>,
 ) {
+    let time_class_i32 = StateMachine::get_time_class().unwrap_or(defaults.default_time_class);
+    let time_class = AnimTimeClass::from(time_class_i32);
+    let time_delta = anim_time.get_delta(time_class);
+
     for (anim_eid, mut anim_man) in &mut anims {
         // If the reset_state is not None, it means `.reset_state` has been called.
         // This state should take precedence over any state/ix that would arise from
@@ -47,7 +57,7 @@ fn progress_animations<StateMachine: AnimStateMachine>(
             let initial_ix = current_body.ix;
             let mut current_ix = initial_ix;
             // Transition through ixs and states
-            current_time += time.delta_seconds();
+            current_time += time_delta;
             while current_time > current_body.spf {
                 current_ix += 1;
                 current_time -= current_body.spf;
@@ -196,11 +206,17 @@ fn drive_flips<StateMachine: AnimStateMachine>(
     }
 }
 
-pub(crate) fn register_logic<StateMachine: AnimStateMachine>(app: &mut App) {
+pub(crate) fn register_logic<
+    StateMachine: AnimStateMachine,
+    AnimTimeClass: AnimTimeClassTrait,
+    AnimTimeRes: AnimTimeResTrait<AnimTimeClass>,
+>(
+    app: &mut App,
+) {
     app.add_systems(
         PostUpdate,
         (
-            progress_animations::<StateMachine>,
+            progress_animations::<StateMachine, AnimTimeClass, AnimTimeRes>,
             drive_animations::<StateMachine>,
             drive_flips::<StateMachine>,
         )
