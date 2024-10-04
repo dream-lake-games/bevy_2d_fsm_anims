@@ -8,25 +8,23 @@ use bevy::sprite::Material2dPlugin;
 use crate::lazy::impl_with;
 use crate::logic::register_logic;
 use crate::man::AnimMan;
-use crate::time::{AnimPlaceholderTimeClass, AnimPlaceholderTimeRes};
-use crate::traits::{AnimStateMachine, AnimTimeClassTrait, AnimTimeResTrait};
+use crate::time::AnimPlaceholderTime;
+use crate::traits::{AnimStateMachine, AnimTimeProvider};
+
+pub const DEFAULT_TIME_CLASS: i32 = 0;
 
 #[derive(Default)]
 pub struct AnimDefnPlugin<
     StateMachine: AnimStateMachine,
-    AnimTimeClass: AnimTimeClassTrait = AnimPlaceholderTimeClass,
-    AnimTimeRes: AnimTimeResTrait<AnimTimeClass> = AnimPlaceholderTimeRes,
+    AnimTime: AnimTimeProvider = AnimPlaceholderTime,
 > {
-    _pd: PhantomData<(StateMachine, AnimTimeClass, AnimTimeRes)>,
+    _pd: PhantomData<(StateMachine, AnimTime)>,
 }
-impl<
-        StateMachine: AnimStateMachine,
-        AnimTimeClass: AnimTimeClassTrait,
-        AnimTimeRes: AnimTimeResTrait<AnimTimeClass>,
-    > Plugin for AnimDefnPlugin<StateMachine, AnimTimeClass, AnimTimeRes>
+impl<StateMachine: AnimStateMachine, AnimTime: AnimTimeProvider> Plugin
+    for AnimDefnPlugin<StateMachine, AnimTime>
 {
     fn build(&self, app: &mut App) {
-        register_logic::<StateMachine, AnimTimeClass, AnimTimeRes>(app);
+        register_logic::<StateMachine, AnimTime>(app);
         app.register_type::<AnimMan<StateMachine>>();
     }
 }
@@ -40,33 +38,26 @@ pub(crate) struct AnimDefaults {
 
 pub(crate) fn update_placeholder_time(
     time: Res<Time>,
-    mut placeholder_time: ResMut<AnimPlaceholderTimeRes>,
+    mut placeholder_time: ResMut<AnimPlaceholderTime>,
 ) {
     placeholder_time.real_time_delta = time.delta_seconds();
 }
 
-pub struct AnimPlugin<
-    TimeClass: AnimTimeClassTrait = AnimPlaceholderTimeClass,
-    TimeRes: AnimTimeResTrait<TimeClass> = AnimPlaceholderTimeRes,
-> {
+pub struct AnimPlugin<AnimTime: AnimTimeProvider = AnimPlaceholderTime> {
     default_fps: f32,
     default_render_layers: RenderLayers,
-    _pd: PhantomData<(TimeClass, TimeRes)>,
+    _pd: PhantomData<AnimTime>,
 }
-impl AnimPlugin<AnimPlaceholderTimeClass, AnimPlaceholderTimeRes> {
+impl AnimPlugin<AnimPlaceholderTime> {
     pub fn new() -> Self {
         Self::default()
     }
 }
-impl<TimeClass: AnimTimeClassTrait, TimeRes: AnimTimeResTrait<TimeClass>>
-    AnimPlugin<TimeClass, TimeRes>
-{
+impl<AnimTime: AnimTimeProvider> AnimPlugin<AnimTime> {
     impl_with!(default_fps, f32);
     impl_with!(default_render_layers, RenderLayers);
 }
-impl<TimeClass: AnimTimeClassTrait, TimeRes: AnimTimeResTrait<TimeClass>> Default
-    for AnimPlugin<TimeClass, TimeRes>
-{
+impl<AnimTime: AnimTimeProvider> Default for AnimPlugin<AnimTime> {
     fn default() -> Self {
         Self {
             default_fps: 24.0,
@@ -75,18 +66,16 @@ impl<TimeClass: AnimTimeClassTrait, TimeRes: AnimTimeResTrait<TimeClass>> Defaul
         }
     }
 }
-impl<AnimTimeClass: AnimTimeClassTrait, AnimTimeRes: AnimTimeResTrait<AnimTimeClass>> Plugin
-    for AnimPlugin<AnimTimeClass, AnimTimeRes>
-{
+impl<AnimTime: AnimTimeProvider> Plugin for AnimPlugin<AnimTime> {
     fn build(&self, app: &mut App) {
         embedded_asset!(app, "anim_mat.wgsl");
         app.add_plugins(Material2dPlugin::<crate::mat::AnimMat>::default());
         app.insert_resource(AnimDefaults {
             default_fps: self.default_fps,
             default_render_layers: self.default_render_layers.clone(),
-            default_time_class: AnimTimeClass::default().into(),
+            default_time_class: DEFAULT_TIME_CLASS,
         });
-        app.insert_resource(AnimPlaceholderTimeRes::default());
+        app.insert_resource(AnimPlaceholderTime::default());
 
         app.add_systems(Update, update_placeholder_time.in_set(crate::AnimSet));
     }

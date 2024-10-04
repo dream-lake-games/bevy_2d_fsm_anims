@@ -30,8 +30,6 @@ pub trait AnimStateMachine:
     fn get_next(&self) -> AnimNextState<Self>;
 }
 
-pub trait AnimTimeClassTrait: Send + Sync + 'static + Default + From<i32> + Into<i32> {}
-
-pub trait AnimTimeResTrait<TimeClass: AnimTimeClassTrait>: Resource + Default {
-    fn get_delta(&self, class: TimeClass) -> f32;
+pub trait AnimTimeProvider: Resource + Default {
+    fn get_delta(&self, class: i32) -> f32;
 }

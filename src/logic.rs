@@ -6,7 +6,7 @@ use crate::body::BodyState;
 use crate::man::{AnimMan, AnimResetStateInfo};
 use crate::mat::AnimMat;
 use crate::plugin::AnimDefaults;
-use crate::traits::{AnimStateMachine, AnimTimeClassTrait, AnimTimeResTrait};
+use crate::traits::{AnimStateMachine, AnimTimeProvider};
 use crate::{AnimIxChange, AnimNextState, AnimSet, AnimStateChange};
 
 /// Placed on components which need to mutably access some material of theirs this frame in response to state of ix changes.
@@ -26,19 +26,14 @@ struct NeedsMatFlipUpdate<StateMachine: AnimStateMachine> {
 /// Regardless, after this frame, any animation which has a non-None `reset_state` will
 /// also have a `NeedsMatStateUpdate` component attached to it. This allows us to avoid
 /// traversing the list of all animation again.
-fn progress_animations<
-    StateMachine: AnimStateMachine,
-    AnimTimeClass: AnimTimeClassTrait,
-    AnimTimeRes: AnimTimeResTrait<AnimTimeClass>,
->(
+fn progress_animations<StateMachine: AnimStateMachine, AnimTime: AnimTimeProvider>(
     mut commands: Commands,
     mut anims: Query<(Entity, &mut AnimMan<StateMachine>)>,
     mut bodies: Query<&mut BodyState<StateMachine>>,
     defaults: Res<AnimDefaults>,
-    anim_time: Res<AnimTimeRes>,
+    anim_time: Res<AnimTime>,
 ) {
-    let time_class_i32 = StateMachine::get_time_class().unwrap_or(defaults.default_time_class);
-    let time_class = AnimTimeClass::from(time_class_i32);
+    let time_class = StateMachine::get_time_class().unwrap_or(defaults.default_time_class);
     let time_delta = anim_time.get_delta(time_class);
 
     for (anim_eid, mut anim_man) in &mut anims {
@@ -206,17 +201,13 @@ fn drive_flips<StateMachine: AnimStateMachine>(
     }
 }
 
-pub(crate) fn register_logic<
-    StateMachine: AnimStateMachine,
-    AnimTimeClass: AnimTimeClassTrait,
-    AnimTimeRes: AnimTimeResTrait<AnimTimeClass>,
->(
+pub(crate) fn register_logic<StateMachine: AnimStateMachine, AnimTime: AnimTimeProvider>(
     app: &mut App,
 ) {
     app.add_systems(
         PostUpdate,
         (
-            progress_animations::<StateMachine, AnimTimeClass, AnimTimeRes>,
+            progress_animations::<StateMachine, AnimTime>,
             drive_animations::<StateMachine>,
             drive_flips::<StateMachine>,
         )
